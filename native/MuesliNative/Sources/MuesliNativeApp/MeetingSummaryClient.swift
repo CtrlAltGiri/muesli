@@ -195,14 +195,16 @@ enum MeetingSummaryClient {
         systemPrompt: String, userPrompt: String,
         maxTokens: Int, extraHeaders: [String: String]
     ) async -> String? {
-        let body: [String: Any] = [
+        let isOpenAI = url.host?.contains("openai.com") == true
+        var body: [String: Any] = [
             "model": model,
             "messages": [
                 ["role": "system", "content": systemPrompt],
                 ["role": "user", "content": userPrompt],
             ],
-            "max_tokens": maxTokens,
         ]
+        // OpenAI newer models require max_completion_tokens; OpenRouter uses max_tokens
+        body[isOpenAI ? "max_completion_tokens" : "max_tokens"] = maxTokens
 
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -215,9 +217,19 @@ enum MeetingSummaryClient {
 
         do {
             let (data, _) = try await URLSession.shared.data(for: request)
-            guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else { return nil }
-            return extractOpenRouterText(from: json)?.trimmingCharacters(in: .whitespacesAndNewlines.union(.init(charactersIn: "\"")))
+            guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+                fputs("[summary] title generation: invalid JSON response\n", stderr)
+                return nil
+            }
+            if let error = json["error"] as? [String: Any] {
+                fputs("[summary] title generation error: \(error["message"] ?? error)\n", stderr)
+                return nil
+            }
+            let result = extractOpenRouterText(from: json)?.trimmingCharacters(in: .whitespacesAndNewlines.union(.init(charactersIn: "\"")))
+            fputs("[summary] generated title: \(result ?? "(nil)")\n", stderr)
+            return result
         } catch {
+            fputs("[summary] title generation failed: \(error)\n", stderr)
             return nil
         }
     }

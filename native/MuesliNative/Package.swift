@@ -25,5 +25,13 @@ let package = Package(
             name: "MuesliSystemAudio",
             path: "Sources/MuesliSystemAudio"
         ),
+        .testTarget(
+            name: "MuesliTests",
+            dependencies: ["MuesliNativeApp"],
+            path: "Tests/MuesliTests",
+            linkerSettings: [
+                .linkedLibrary("sqlite3"),
+            ]
+        ),
     ]
 )
