@@ -372,6 +372,7 @@ final class MuesliController: NSObject {
         do {
             try meetingSession.start()
             activeMeetingSession = meetingSession
+            micActivityMonitor.suppressWhileActive()
             statusBarController?.setStatus("Meeting: \(title)")
             indicator.setMeetingRecording(true, config: config)
             statusBarController?.refresh()
@@ -387,8 +388,10 @@ final class MuesliController: NSObject {
         setState(.transcribing)
         Task { [weak self] in
             guard let self else { return }
+            var meetingTitle = "Meeting"
             do {
                 let result = try await activeMeetingSession.stop()
+                meetingTitle = result.title
                 try self.dictationStore.insertMeeting(
                     title: result.title,
                     calendarEventID: result.calendarEventID,
@@ -405,9 +408,19 @@ final class MuesliController: NSObject {
             await MainActor.run {
                 self.activeMeetingSession = nil
                 self.setState(.idle)
+                self.micActivityMonitor.resumeAfterCooldown()
                 self.statusBarController?.refresh()
                 self.historyWindowController?.reload()
                 self.syncAppState()
+
+                self.meetingNotification.show(
+                    title: "Transcription complete",
+                    subtitle: meetingTitle,
+                    actionLabel: "View Notes",
+                    onStartRecording: { [weak self] in
+                        self?.openHistoryWindow(tab: .meetings)
+                    }
+                )
             }
         }
     }
@@ -460,7 +473,7 @@ final class MuesliController: NSObject {
     private func handleStart() {
         if isMeetingRecording() { return }
         fputs("[muesli-native] recording start\n", stderr)
-        micActivityMonitor.noteDictationActive()
+        micActivityMonitor.suppressWhileActive()
         do {
             try recorder.start()
             dictationStartedAt = Date()
@@ -532,6 +545,7 @@ final class MuesliController: NSObject {
                     self.syncAppState()
                     PasteController.paste(text: text)
                     self.setState(.idle)
+                    self.micActivityMonitor.resumeAfterCooldown()
                 }
             } catch {
                 fputs("[muesli-native] transcription failed: \(error)\n", stderr)

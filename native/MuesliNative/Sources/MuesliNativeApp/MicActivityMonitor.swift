@@ -66,10 +66,14 @@ final class MicActivityMonitor {
         suppressUntil = Date().addingTimeInterval(duration)
     }
 
-    /// Call this when Muesli's own dictation starts/stops to prevent false triggers
-    func noteDictationActive() {
-        // Suppress for a short window after our own dictation
-        suppressUntil = Date().addingTimeInterval(10)
+    /// Call when Muesli's own dictation or meeting recording starts
+    func suppressWhileActive() {
+        suppressUntil = Date.distantFuture
+    }
+
+    /// Call when dictation/recording ends — resume after short cooldown
+    func resumeAfterCooldown() {
+        suppressUntil = Date().addingTimeInterval(15)
     }
 
     private func poll() {

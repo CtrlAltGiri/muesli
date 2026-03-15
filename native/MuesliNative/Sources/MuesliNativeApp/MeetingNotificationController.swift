@@ -15,6 +15,7 @@ final class MeetingNotificationController {
     func show(
         title: String,
         subtitle: String,
+        actionLabel: String = "Start Recording",
         onStartRecording: @escaping () -> Void,
         onDismiss: (() -> Void)? = nil
     ) {
@@ -87,7 +88,7 @@ final class MeetingNotificationController {
         contentView.addSubview(subtitleLabel)
 
         // Start Recording button
-        let startButton = NSButton(title: "Start Recording", target: self, action: #selector(handleStartRecording))
+        let startButton = NSButton(title: actionLabel, target: self, action: #selector(handleStartRecording))
         startButton.font = .systemFont(ofSize: 12, weight: .medium)
         startButton.frame = NSRect(x: width - 140, y: 20, width: 120, height: 30)
         startButton.wantsLayer = true
