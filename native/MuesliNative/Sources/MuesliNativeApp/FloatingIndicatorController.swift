@@ -33,17 +33,15 @@ private final class HoverIndicatorView: NSView {
     }
 
     override func mouseDown(with event: NSEvent) {
-        dragOrigin = event.locationInWindow
         didDrag = false
+        owner?.collapseForDrag()
+        // Recalculate drag origin after collapse (frame changed)
+        dragOrigin = NSPoint(x: (window?.frame.width ?? 0) / 2, y: (window?.frame.height ?? 0) / 2)
     }
 
     override func mouseDragged(with event: NSEvent) {
         guard let window else { return }
-        if !didDrag {
-            didDrag = true
-            owner?.isDragging = true
-            owner?.setHovered(false)
-        }
+        didDrag = true
         let current = event.locationInWindow
         let frame = window.frame
         let newOrigin = NSPoint(
@@ -93,10 +91,36 @@ final class FloatingIndicatorController {
         }
     }
 
+    func collapseForDrag() {
+        isDragging = true
+        hoverExitWorkItem?.cancel()
+        guard state == .idle, let panel, let contentView, let iconLabel, let textLabel else { return }
+        isHovered = false
+
+        let config = configStore.load()
+        let style = styleForState(.idle)
+        let targetFrame = frameForState(.idle, config: config)
+
+        // Instant resize — no animation
+        panel.setFrame(targetFrame, display: true)
+        contentView.frame = NSRect(origin: .zero, size: targetFrame.size)
+        contentView.layer?.cornerRadius = targetFrame.height / 2
+        contentView.layer?.backgroundColor = style.background.cgColor
+        contentView.layer?.borderColor = style.border.cgColor
+        panel.alphaValue = style.alpha
+
+        iconLabel.stringValue = style.icon
+        iconLabel.textColor = style.iconColor
+        textLabel.isHidden = true
+        textLabel.alphaValue = 0
+        layoutLabels(iconLabel: iconLabel, textLabel: textLabel, in: targetFrame.size, hasTitle: false, animated: false)
+    }
+
     func savePosition() {
-        guard let origin = panel?.frame.origin else { return }
+        guard let frame = panel?.frame else { return }
+        let center = CGPoint(x: frame.midX, y: frame.midY)
         var config = configStore.load()
-        config.indicatorOrigin = CGPointCodable(x: origin.x, y: origin.y)
+        config.indicatorOrigin = CGPointCodable(x: center.x, y: center.y)
         configStore.save(config)
     }
 
@@ -355,18 +379,24 @@ final class FloatingIndicatorController {
         case .transcribing: size = NSSize(width: 120, height: 32)
         }
 
-        let origin: CGPoint
-        if let manual = config.indicatorOrigin {
-            origin = CGPoint(x: manual.x, y: manual.y)
+        // Use the pill's current on-screen center if it exists, so state
+        // transitions resize around the current position rather than jumping.
+        // Saved config is only used for initial panel creation.
+        let center: CGPoint
+        if let currentFrame = panel?.frame, currentFrame.width > 0 {
+            center = CGPoint(x: currentFrame.midX, y: currentFrame.midY)
+        } else if let saved = config.indicatorOrigin {
+            center = CGPoint(x: saved.x, y: saved.y)
         } else {
-            origin = CGPoint(
-                x: screen.maxX - size.width - 8,
-                y: screen.minY + (screen.height * 0.56) - (size.height / 2)
+            let defaultSize = NSSize(width: 44, height: 28)
+            center = CGPoint(
+                x: screen.maxX - defaultSize.width / 2 - 8,
+                y: screen.minY + (screen.height * 0.56)
             )
         }
 
-        let x = min(max(origin.x, screen.minX), screen.maxX - size.width)
-        let y = min(max(origin.y, screen.minY), screen.maxY - size.height)
+        let x = min(max(center.x - size.width / 2, screen.minX), screen.maxX - size.width)
+        let y = min(max(center.y - size.height / 2, screen.minY), screen.maxY - size.height)
         return NSRect(x: x, y: y, width: size.width, height: size.height)
     }
 
