@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>free speech · muesli</title>
+  <meta name="description" content="Muesli is a local-first AI dictation and meeting transcriber. Free speech, on device, local inference.">
+  <meta property="og:title" content="muesli — free speech">
+  <meta property="og:description" content="Muesli is a local-first AI dictation and meeting transcriber. Free speech, on device, local inference.">
+  <meta property="og:image" content="https://freedspeech.xyz/og.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://freedspeech.xyz">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="muesli — free speech">
+  <meta name="twitter:description" content="Local-first AI dictation and meeting transcriber. Free speech, on device, local inference.">
+  <meta name="twitter:image" content="https://freedspeech.xyz/og.png">
+  <meta name="theme-color" content="#111214">
+  <link rel="icon" type="image/png" href="./favicon.png">
+  <link rel="apple-touch-icon" href="./icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=IBM+Plex+Mono:wght@300;400&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --void: #111214;
+      --text: rgba(255,255,255,0.88);
+      --text-dim: rgba(255,255,255,0.35);
+      --accent: #6BA3F7;
+      --red: #EF4444;
+      --green: #34D399;
+      --system: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
+      --serif: 'Cormorant Garamond', 'Georgia', serif;
+      --mono: 'IBM Plex Mono', 'Menlo', monospace;
+    }
+
+    html, body {
+      width: 100%; height: 100%;
+      overflow: hidden;
+      background: var(--void);
+      color: var(--text);
+      font-family: var(--serif);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── atmospheric radial warmth ── */
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background:
+        radial-gradient(ellipse at 50% 50%, rgba(239,68,68,0.035) 0%, transparent 55%),
+        radial-gradient(ellipse at 78% 22%, rgba(107,163,247,0.018) 0%, transparent 35%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ── constructivist geometry: palantir's seeing-stone + diagonals ── */
+    .geo {
+      position: fixed; inset: 0;
+      width: 100%; height: 100%;
+      z-index: 1;
+      pointer-events: none;
+    }
+
+    /* ── floating quotes ── */
+    #field {
+      position: fixed; inset: 0;
+      z-index: 2;
+      pointer-events: none;
+    }
+
+    .q {
+      position: absolute;
+      left: 0; top: 0;
+      font-family: var(--serif);
+      font-style: italic;
+      line-height: 1.45;
+      color: rgba(255,255,255,1);
+      white-space: normal;
+      pointer-events: none;
+      user-select: none;
+      will-change: transform, opacity;
+      opacity: 0;
+    }
+
+    .q cite {
+      display: block;
+      font-style: normal;
+      font-family: var(--mono);
+      font-size: 0.58em;
+      margin-top: 0.5em;
+      opacity: 0.5;
+      font-weight: 300;
+      letter-spacing: 0.03em;
+    }
+
+    .q.rev { color: rgba(239,68,68,1); }
+    .q.rev cite { color: rgba(239,68,68,0.5); }
+
+    /* ── center content ── */
+    .core {
+      position: fixed;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .icon {
+      width: 72px; height: 72px;
+      border-radius: 16px;
+      opacity: 0;
+      animation: fadeUp 2s ease 0.3s forwards;
+      margin-bottom: 18px;
+    }
+
+    .name {
+      font-family: var(--system);
+      font-weight: 700;
+      font-size: 2.8rem;
+      letter-spacing: -0.02em;
+      color: var(--text);
+      opacity: 0;
+      animation: fadeUp 2s ease 0.55s forwards;
+    }
+
+    .sub {
+      font-family: var(--system);
+      font-weight: 400;
+      font-size: 1.1rem;
+      color: rgba(255,255,255,0.5);
+      margin-top: 10px;
+      letter-spacing: 0.04em;
+      opacity: 0;
+      animation: fadeUp 2s ease 0.75s forwards;
+    }
+
+    .get {
+      display: inline-block;
+      font-family: var(--mono);
+      font-weight: 400;
+      font-size: 0.78rem;
+      color: var(--green);
+      text-decoration: none;
+      margin-top: 30px;
+      padding: 10px 30px;
+      border: 1px solid rgba(52,211,153,0.2);
+      border-radius: 4px;
+      letter-spacing: 0.04em;
+      transition: all 0.4s ease;
+      opacity: 0;
+      animation: fadeUp 2s ease 1.15s forwards;
+    }
+    .get:hover {
+      background: rgba(52,211,153,0.07);
+      border-color: rgba(52,211,153,0.45);
+      box-shadow: 0 0 40px rgba(52,211,153,0.06);
+    }
+
+    /* ── header nav ── */
+    .topnav {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 10;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 32px;
+      padding: 22px 0;
+      font-family: var(--mono);
+      font-weight: 700;
+      font-size: 0.92rem;
+      letter-spacing: 0.02em;
+      opacity: 0;
+      animation: headerIn 2s ease 1.2s forwards;
+    }
+    @keyframes headerIn {
+      from { opacity: 0; }
+      to   { opacity: 1; }
+    }
+    .topnav a {
+      color: rgba(255,255,255,0.6);
+      text-decoration: none;
+      transition: color 0.3s ease;
+    }
+    .topnav a:hover { color: rgba(255,255,255,0.9); }
+    .topnav .dot { color: rgba(255,255,255,0.2); }
+
+    /* ── footer ── */
+    footer {
+      position: fixed;
+      bottom: 26px;
+      left: 0; right: 0;
+      z-index: 10;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 14px;
+      font-family: var(--mono);
+      font-weight: 400;
+      font-size: 0.68rem;
+      letter-spacing: 0.03em;
+      opacity: 0;
+      animation: footerIn 2s ease 1.5s forwards;
+    }
+    @keyframes footerIn {
+      from { opacity: 0; }
+      to   { opacity: 1; }
+    }
+    footer .dot { color: rgba(255,255,255,0.18); }
+    footer span { color: rgba(255,255,255,0.3); }
+
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(10px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ── responsive ── */
+    @media (max-width: 768px) {
+      .name { font-size: 2.3rem; }
+      .sub { font-size: 0.88rem; }
+      .q { max-width: 200px !important; }
+      .topnav { font-size: 0.8rem; gap: 20px; }
+      footer { bottom: 18px; font-size: 0.58rem; gap: 8px; flex-wrap: wrap; padding: 0 16px; }
+      .get { font-size: 0.72rem; padding: 9px 24px; }
+    }
+    @media (max-width: 480px) {
+      .name { font-size: 1.8rem; letter-spacing: -0.01em; }
+      .sub { font-size: 0.78rem; }
+    }
+    @media (max-height: 500px) {
+      .core { top: 44%; }
+      .sub { display: none; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .icon, .name, .sub, .get, .topnav, footer {
+        animation: none !important;
+        opacity: 1 !important;
+        transform: translateY(0) !important;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- constructivist arcs + diagonals -->
+  <svg class="geo" viewBox="0 0 1000 1000" preserveAspectRatio="xMidYMid slice">
+    <circle cx="500" cy="500" r="260" stroke="rgba(239,68,68,0.025)" fill="none" stroke-width="0.4"/>
+    <circle cx="500" cy="500" r="370" stroke="rgba(239,68,68,0.016)" fill="none" stroke-width="0.3" stroke-dasharray="14 35"/>
+    <circle cx="500" cy="500" r="160" stroke="rgba(107,163,247,0.018)" fill="none" stroke-width="0.3"/>
+    <line x1="40" y1="960" x2="960" y2="40" stroke="rgba(239,68,68,0.018)" stroke-width="0.3"/>
+    <line x1="120" y1="0" x2="780" y2="1000" stroke="rgba(239,68,68,0.01)" stroke-width="0.25"/>
+  </svg>
+
+  <nav class="topnav">
+    <a href="https://github.com/pHequals7/muesli" target="_blank" rel="noopener">contribute on github</a>
+    <span class="dot">&middot;</span>
+    <a href="https://buymeacoffee.com/phequals7" target="_blank" rel="noopener">support</a>
+  </nav>
+
+  <!-- floating quotes (populated by JS) -->
+  <div id="field"></div>
+
+  <!-- center: product identity -->
+  <div class="core">
+    <img class="icon" src="./icon.png" alt="Muesli" width="72" height="72">
+    <h1 class="name">muesli</h1>
+    <p class="sub">free speech &middot; on device &middot; local inference</p>
+    <a class="get" href="https://github.com/pHequals7/muesli/releases/latest/download/Muesli.dmg">download for macOS</a>
+  </div>
+
+  <footer>
+    <span>mit license</span>
+    <span class="dot">&middot;</span>
+    <span>built with mlx on apple silicon</span>
+  </footer>
+
+<script>
+/* ═══════════════════════════════════════════════════════════
+   free speech · muesli
+   constant brownian drift · cursor reveals quotes
+   ═══════════════════════════════════════════════════════════ */
+
+const QUOTES = [
+  { t: "\u201cFreedom is always the freedom of the one who thinks differently.\u201d", by: "Rosa Luxemburg", rev: 1 },
+  { t: "\u201cIf liberty means anything at all, it means the right to tell people what they do not want to hear.\u201d", by: "George Orwell" },
+  { t: "\u201cTo suppress free speech is a double wrong. It violates the rights of the hearer as well as those of the speaker.\u201d", by: "Frederick Douglass" },
+  { t: "\u201cIf we don\u2019t believe in freedom of expression for people we despise, we don\u2019t believe in it at all.\u201d", by: "Noam Chomsky", rev: 1 },
+  { t: "\u201cThe only way to deal with an unfree world is to become so absolutely free that your very existence is an act of rebellion.\u201d", by: "Albert Camus" },
+  { t: "\u201cOur lives begin to end the day we become silent about things that matter.\u201d", by: "Martin Luther King Jr." },
+  { t: "\u201cIf freedom of speech is taken away, then dumb and silent we may be led, like sheep to the slaughter.\u201d", by: "George Washington" },
+  { t: "\u201cThe moment we no longer have a free press, anything can happen.\u201d", by: "Hannah Arendt" },
+  { t: "\u201cWithout the freedom to offend, freedom of expression ceases to exist.\u201d", by: "Salman Rushdie" },
+  { t: "\u201cWithout freedom of speech there is no modern world, just a barbaric one.\u201d", by: "Ai Weiwei" },
+  { t: "\u201cWhen the whole world is silent, even one voice becomes powerful.\u201d", by: "Malala Yousafzai" },
+  { t: "\u201cThe free development of each is the condition for the free development of all.\u201d", by: "Karl Marx", rev: 1 },
+  { t: "\u201cIf you are neutral in situations of injustice, you have chosen the side of the oppressor.\u201d", by: "Desmond Tutu" },
+  { t: "\u201cTo be free is not merely to cast off one\u2019s chains, but to live in a way that respects and enhances the freedom of others.\u201d", by: "Nelson Mandela" },
+  { t: "\u201cYour silence will not protect you.\u201d", by: "Audre Lorde", rev: 1 },
+  { t: "\u201cNot everything that is faced can be changed, but nothing can be changed until it is faced.\u201d", by: "James Baldwin" },
+  { t: "\u201cLock up your libraries if you like; but there is no gate, no lock, no bolt that you can set upon the freedom of my mind.\u201d", by: "Virginia Woolf" },
+  { t: "\u201cWhoever would overthrow the liberty of a nation must begin by subduing the freeness of speech.\u201d", by: "Benjamin Franklin" },
+  { t: "\u201cSpeech is power: speech is to persuade, to convert, to compel.\u201d", by: "Ralph Waldo Emerson" },
+  { t: "\u201cIf I can\u2019t dance, I don\u2019t want to be part of your revolution.\u201d", by: "Emma Goldman", rev: 1 },
+  { t: "\u201cThe right of others to free expression is part of my own.\u201d", by: "Christopher Hitchens" },
+  { t: "\u201cHe that would make his own liberty secure must guard even his enemy from oppression.\u201d", by: "Thomas Paine" },
+  { t: "\u201cThink for yourselves and let others enjoy the privilege to do so too.\u201d", by: "Voltaire" },
+  { t: "\u201cThe cost of liberty is less than the price of repression.\u201d", by: "W.E.B. Du Bois", rev: 1 },
+  { t: "\u201cSaying you don\u2019t care about privacy because you have nothing to hide is like saying you don\u2019t care about free speech because you have nothing to say.\u201d", by: "Edward Snowden" },
+];
+
+const TIERS = [
+  { sz: '1.7rem',  op: 0.05,  w: 300, mw: 420 },
+  { sz: '1.25rem', op: 0.065, w: 300, mw: 370 },
+  { sz: '1rem',    op: 0.09,  w: 400, mw: 310 },
+  { sz: '0.88rem', op: 0.13,  w: 400, mw: 270 },
+  { sz: '0.78rem', op: 0.17,  w: 400, mw: 230 },
+];
+
+// Box-Muller gaussian
+function gauss() {
+  let u = 0, v = 0;
+  while (!u) u = Math.random();
+  while (!v) v = Math.random();
+  return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+}
+
+class Particle {
+  constructor(el, x, y, baseOp) {
+    this.el = el;
+    this.x = x;  this.y = y;
+    this.bo = baseOp;
+    this.rot = (Math.random() - 0.5) * 6;
+    // slow persistent drift — each quote wanders across the viewport
+    this.angle = Math.random() * Math.PI * 2;
+    this.speed = 0.25 + Math.random() * 0.35;
+    this.angleV = (Math.random() - 0.5) * 0.008;
+    this.on = false;
+  }
+
+  wake() { this.on = true; }
+
+  tick(mx, my, ptr) {
+    if (!this.on) return;
+
+    // slowly evolving drift direction — smooth meandering paths
+    this.angle += this.angleV + gauss() * 0.004;
+
+    this.x += Math.cos(this.angle) * this.speed;
+    this.y += Math.sin(this.angle) * this.speed;
+
+    // wrap around edges — infinite drifting field
+    const W = innerWidth, H = innerHeight, pad = 60;
+    if (this.x < -pad)    this.x = W + pad * 0.5;
+    if (this.x > W + pad) this.x = -pad * 0.5;
+    if (this.y < -pad)    this.y = H + pad * 0.5;
+    if (this.y > H + pad) this.y = -pad * 0.5;
+
+    this.rot += this.angleV * 0.3;
+
+    // cursor only reveals — brighten + make quote prominent
+    let op = this.bo;
+    if (ptr) {
+      const dx = this.x - mx, dy = this.y - my;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < 320) {
+        const b = 1 - dist / 320;
+        op += b * b * 0.55;
+      }
+    }
+
+    this.el.style.opacity = op;
+    this.el.style.transform = 'translate(' + this.x + 'px,' + this.y + 'px) rotate(' + this.rot + 'deg)';
+  }
+}
+
+// ── state ───────────────────────────────────────────────────
+const field = document.getElementById('field');
+const particles = [];
+let mx = -9999, my = -9999, ptr = false;
+const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+function init() {
+  field.innerHTML = '';
+  particles.length = 0;
+
+  const W = innerWidth, H = innerHeight;
+  const cx = W / 2, cy = H / 2;
+  const excl = Math.min(W, H) * 0.32;
+  const shuffled = [...QUOTES].sort(() => Math.random() - 0.5);
+  const count = W < 520 ? 12 : W < 820 ? 17 : shuffled.length;
+
+  for (let i = 0; i < count; i++) {
+    const q = shuffled[i];
+    const tier = TIERS[Math.floor(Math.random() * TIERS.length)];
+
+    // place avoiding center
+    let x, y, att = 0;
+    do {
+      x = Math.random() * (W - 160) + 50;
+      y = Math.random() * (H - 120) + 40;
+      att++;
+    } while (att < 80 && Math.hypot(x - cx, y - cy) < excl);
+
+    const el = document.createElement('div');
+    el.className = 'q' + (q.rev ? ' rev' : '');
+    el.style.fontSize = tier.sz;
+    el.style.fontWeight = tier.w;
+    el.style.maxWidth = tier.mw + 'px';
+    el.innerHTML = q.t + '<cite>\u2014 ' + q.by + '</cite>';
+    field.appendChild(el);
+
+    const baseOp = tier.op * (q.rev ? 1.35 : 1);
+    const p = new Particle(el, x, y, baseOp);
+    particles.push(p);
+
+    if (reduced) {
+      el.style.opacity = baseOp;
+      el.style.transform = 'translate(' + x + 'px,' + y + 'px) rotate(' + p.rot + 'deg)';
+      p.wake();
+    } else {
+      const delay = 300 + Math.random() * 2800;
+      setTimeout(() => {
+        p.wake();
+        el.style.transition = 'opacity 2.2s ease';
+        el.style.opacity = baseOp;
+        setTimeout(() => { el.style.transition = 'none'; }, 2400);
+      }, delay);
+    }
+  }
+}
+
+// ── input ───────────────────────────────────────────────────
+document.addEventListener('mousemove', e => { mx = e.clientX; my = e.clientY; ptr = true; });
+document.addEventListener('mouseleave', () => { ptr = false; });
+document.addEventListener('touchmove', e => {
+  const t = e.touches[0]; mx = t.clientX; my = t.clientY; ptr = true;
+}, { passive: true });
+document.addEventListener('touchend', () => { ptr = false; });
+
+// ── animation loop ──────────────────────────────────────────
+function loop() {
+  for (const p of particles) p.tick(mx, my, ptr);
+  requestAnimationFrame(loop);
+}
+
+// ── resize ──────────────────────────────────────────────────
+let rt;
+addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(init, 400); });
+
+// ── go ──────────────────────────────────────────────────────
+init();
+if (!reduced) requestAnimationFrame(loop);
+</script>
+</body>
+</html>

@@ -43,7 +43,6 @@ scripts/setup_no_torch_env.sh
 requirements-no-torch.txt
 requirements-no-torch-dev.txt
 research/
-site/
 assets/muesli_app_icon_traced*.svg
 assets/menu_mic_template.png
 context.md
