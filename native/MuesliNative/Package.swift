@@ -9,9 +9,15 @@ let package = Package(
     products: [
         .executable(name: "MuesliNativeApp", targets: ["MuesliNativeApp"]),
     ],
+    dependencies: [
+        .package(url: "https://github.com/FluidInference/FluidAudio.git", from: "0.12.2"),
+    ],
     targets: [
         .executableTarget(
             name: "MuesliNativeApp",
+            dependencies: [
+                .product(name: "FluidAudio", package: "FluidAudio"),
+            ],
             path: "Sources/MuesliNativeApp",
             swiftSettings: [
                 .unsafeFlags(["-parse-as-library"]),
