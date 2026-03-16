@@ -355,7 +355,7 @@ final class FloatingIndicatorController {
             height: circleSize
         )
         circle.cornerRadius = circleSize / 2
-        circle.backgroundColor = NSColor(red: 0.95, green: 0.3, blue: 0.3, alpha: 1.0).cgColor
+        circle.backgroundColor = NSColor.white.withAlphaComponent(0.9).cgColor
 
         // White square inside
         let squareSize: CGFloat = 8
@@ -367,7 +367,7 @@ final class FloatingIndicatorController {
             height: squareSize
         )
         square.cornerRadius = 1.5
-        square.backgroundColor = NSColor.white.cgColor
+        square.backgroundColor = NSColor(red: 0.83, green: 0.18, blue: 0.18, alpha: 1.0).cgColor
         circle.addSublayer(square)
 
         contentView.layer?.addSublayer(circle)
@@ -523,7 +523,7 @@ final class FloatingIndicatorController {
             if isMeetingRecording {
                 size = NSSize(width: 72, height: 32)
             } else if isToggleDictation {
-                size = NSSize(width: 110, height: 32)
+                size = NSSize(width: 88, height: 32)
             } else {
                 size = NSSize(width: 80, height: 32)
             }
