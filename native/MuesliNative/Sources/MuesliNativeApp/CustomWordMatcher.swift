@@ -108,6 +108,7 @@ struct CustomWordMatcher {
         for i in 0..<chars1.count {
             let start = max(0, i - matchWindow)
             let end = min(chars2.count - 1, i + matchWindow)
+            guard start <= end else { continue }
 
             for j in start...end {
                 if s2Matches[j] || chars1[i] != chars2[j] { continue }

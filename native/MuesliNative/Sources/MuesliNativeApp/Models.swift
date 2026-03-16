@@ -188,7 +188,9 @@ struct AppConfig: Codable {
     var meetingSummaryModel: String = ""
     var hasCompletedOnboarding: Bool = false
     var userName: String = ""
-    var customWords: [CustomWord] = []
+    var customWords: [CustomWord] = [
+        CustomWord(word: "muesli", replacement: "muesli"),
+    ]
 
     enum CodingKeys: String, CodingKey {
         case dictationHotkey = "dictation_hotkey"

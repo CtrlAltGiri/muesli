@@ -29,6 +29,22 @@ struct JaroWinklerTests {
         #expect(CustomWordMatcher.jaroWinklerSimilarity("", "hello") == 0.0)
     }
 
+    @Test("single character strings don't crash")
+    func singleChar() {
+        let score = CustomWordMatcher.jaroWinklerSimilarity("a", "b")
+        #expect(score >= 0 && score <= 1)
+        let score2 = CustomWordMatcher.jaroWinklerSimilarity("a", "a")
+        #expect(score2 == 1.0)
+        let score3 = CustomWordMatcher.jaroWinklerSimilarity("I", "muesli")
+        #expect(score3 >= 0 && score3 <= 1)
+    }
+
+    @Test("short vs long strings don't crash")
+    func shortVsLong() {
+        let score = CustomWordMatcher.jaroWinklerSimilarity("a", "abcdefghij")
+        #expect(score >= 0 && score <= 1)
+    }
+
     @Test("common prefix boosts score")
     func prefixBoost() {
         let withPrefix = CustomWordMatcher.jaroWinklerSimilarity("muesli", "muesly")
