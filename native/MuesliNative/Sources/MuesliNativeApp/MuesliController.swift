@@ -72,6 +72,7 @@ final class MuesliController: NSObject {
         hotkeyMonitor.onToggleStop = { [weak self] in self?.handleToggleStop() }
         hotkeyMonitor.doubleTapEnabled = config.enableDoubleTapDictation
         hotkeyMonitor.start()
+        indicator.hotkeyLabel = config.dictationHotkey.label
         indicator.onStopMeeting = { [weak self] in self?.stopMeetingRecording() }
         indicator.onStopToggleDictation = { [weak self] in
             self?.hotkeyMonitor.stopToggleMode()
@@ -256,6 +257,7 @@ final class MuesliController: NSObject {
     func updateDictationHotkey(_ hotkey: HotkeyConfig) {
         updateConfig { $0.dictationHotkey = hotkey }
         hotkeyMonitor.configure(keyCode: hotkey.keyCode)
+        indicator.hotkeyLabel = hotkey.label
     }
 
     // MARK: - Onboarding
