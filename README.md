@@ -20,7 +20,7 @@
 
 ## What is Muesli?
 
-Muesli is a **32MB native macOS app** that combines **WisprFlow-style dictation** and **Granola-style meeting transcription** in one lightweight tool. All transcription runs locally on Apple Silicon — your audio never leaves your device.
+Muesli is a **32MB native macOS app** that combines **WisprFlow-style dictation** and **Granola-style meeting transcription** in one lightweight tool. All transcription runs locally on Apple Silicon — your audio never leaves your device unless you want to (meeting summaries).
 
 ### Dictation
 Hold your hotkey (or double-tap for hands-free mode) → speak → release → transcribed text is pasted at your cursor. **~0.13 second latency** via Parakeet TDT on the Apple Neural Engine.
@@ -33,7 +33,7 @@ Start a meeting recording → Muesli captures your mic (You) and system audio (O
 ## Features
 
 - **Native Swift, zero Python** — Pure Swift app with CoreML and Metal backends. No bundled runtimes, no subprocess IPC. 32MB total.
-- **Multiple ASR models** — Choose from Parakeet TDT (Neural Engine), Whisper Small/Medium/Large Turbo (Metal via whisper.cpp), with more coming soon.
+- **Multiple ASR models** — Choose from Parakeet TDT (Neural Engine), Whisper Small/Medium/Large Turbo (Metal via whisper.cpp), with more coming soon (NVIDIA's Neomotron-ASR and Qwen 3.5-ASR support being added as you read..)
 - **Hold-to-talk & hands-free** — Hold hotkey for quick dictation, or double-tap for sustained recording.
 - **Meeting recording** — Captures mic + system audio (including Bluetooth/AirPods) via ScreenCaptureKit.
 - **Chunked meeting transcription** — Mic audio transcribed in 30-second chunks during the meeting. Only system audio needs processing at the end.
