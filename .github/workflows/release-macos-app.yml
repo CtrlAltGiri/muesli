@@ -36,7 +36,10 @@ jobs:
           cp assets/muesli.icns "$APP_DIR/Contents/Resources/"
           [ -d assets/fonts ] && cp -R assets/fonts "$APP_DIR/Contents/Resources/fonts"
 
-          cat > "$APP_DIR/Contents/Info.plist" <<'PLIST'
+          VERSION="${GITHUB_REF_NAME#v}"
+          [ -z "$VERSION" ] && VERSION="0.0.0-dev"
+
+          cat > "$APP_DIR/Contents/Info.plist" <<PLIST
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
           <plist version="1.0">
@@ -44,8 +47,8 @@ jobs:
             <key>CFBundleName</key><string>Muesli</string>
             <key>CFBundleDisplayName</key><string>Muesli</string>
             <key>CFBundleIdentifier</key><string>com.muesli.app</string>
-            <key>CFBundleVersion</key><string>0.3.0</string>
-            <key>CFBundleShortVersionString</key><string>0.3.0</string>
+            <key>CFBundleVersion</key><string>${VERSION}</string>
+            <key>CFBundleShortVersionString</key><string>${VERSION}</string>
             <key>CFBundleExecutable</key><string>Muesli</string>
             <key>CFBundlePackageType</key><string>APPL</string>
             <key>CFBundleIconFile</key><string>muesli.icns</string>
@@ -59,14 +62,21 @@ jobs:
           </plist>
           PLIST
 
-      - name: Archive app bundle
-        run: ditto -c -k --sequesterRsrc --keepParent dist/Muesli.app dist/Muesli-macos.zip
+      - name: Create DMG
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          [ -z "$VERSION" ] && VERSION="0.0.0-dev"
+          STAGING=$(mktemp -d)
+          cp -R dist/Muesli.app "$STAGING/"
+          ln -s /Applications "$STAGING/Applications"
+          hdiutil create -volname "Muesli" -srcfolder "$STAGING" -ov -format UDZO "dist/Muesli-${VERSION}.dmg"
+          rm -rf "$STAGING"
 
       - name: Upload workflow artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Muesli-macos-app
-          path: dist/Muesli-macos.zip
+          name: Muesli-macos
+          path: dist/Muesli-*.dmg
           compression-level: 0
 
       - name: Publish release asset
@@ -74,7 +84,11 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          DMG="dist/Muesli-${VERSION}.dmg"
           if ! gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
-            gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --notes "Native Swift build — 32MB, zero Python dependency"
+            gh release create "$GITHUB_REF_NAME" \
+              --title "Muesli ${VERSION}" \
+              --notes "Native macOS app — dictation + meeting transcription on Apple Silicon. **Note:** This CI build is unsigned. For the signed+notarized release, download from the pinned release."
           fi
-          gh release upload "$GITHUB_REF_NAME" dist/Muesli-macos.zip --clobber
+          gh release upload "$GITHUB_REF_NAME" "$DMG" --clobber
