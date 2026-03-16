@@ -182,9 +182,29 @@ final class FloatingIndicatorController {
             contentView.layer?.borderWidth = 1.0
             contentView.layer?.borderColor = style.border.cgColor
 
-            if state == .recording && !isMeetingRecording {
-                iconLabel.animator().alphaValue = 0
-                textLabel.animator().alphaValue = 0
+            if state == .recording {
+                if isMeetingRecording {
+                    // Meeting: stop icon on the left, waveform fills the rest
+                    iconLabel.isHidden = false
+                    iconLabel.animator().alphaValue = 1
+                    iconLabel.stringValue = style.icon
+                    iconLabel.textColor = style.iconColor
+                    let iconSize = iconLabel.attributedStringValue.size()
+                    let iconWidth = max(24, ceil(iconSize.width) + 2)
+                    let iconHeight = max(18, ceil(iconSize.height))
+                    iconLabel.frame = NSRect(
+                        x: 10,
+                        y: (targetFrame.height - iconHeight) / 2,
+                        width: iconWidth,
+                        height: iconHeight
+                    )
+                    textLabel.animator().alphaValue = 0
+                    textLabel.isHidden = true
+                } else {
+                    // Dictation: hide labels entirely, waveform replaces
+                    iconLabel.animator().alphaValue = 0
+                    textLabel.animator().alphaValue = 0
+                }
             } else {
                 iconLabel.isHidden = false
                 iconLabel.animator().alphaValue = 1
@@ -204,8 +224,9 @@ final class FloatingIndicatorController {
             }
         }
 
-        if state == .recording && !isMeetingRecording {
-            startWaveformAnimation(in: targetFrame.size)
+        if state == .recording {
+            let waveformXOffset: CGFloat = isMeetingRecording ? 32 : 0
+            startWaveformAnimation(in: targetFrame.size, xOffset: waveformXOffset)
         }
 
         panel.orderFrontRegardless()
@@ -255,14 +276,15 @@ final class FloatingIndicatorController {
     private static let barMaxHeight: CGFloat = 26.0
     private static let barMultipliers: [CGFloat] = [0.6, 0.85, 1.0, 0.85, 0.6]
 
-    private func startWaveformAnimation(in size: NSSize) {
+    private func startWaveformAnimation(in size: NSSize, xOffset: CGFloat = 0) {
         let savedProvider = powerProvider
         stopWaveformAnimation()
         powerProvider = savedProvider
         guard let contentView else { return }
 
         let totalWidth = CGFloat(Self.barCount) * Self.barWidth + CGFloat(Self.barCount - 1) * Self.barSpacing
-        let startX = (size.width - totalWidth) / 2
+        let availableWidth = size.width - xOffset
+        let startX = xOffset + (availableWidth - totalWidth) / 2
 
         for i in 0..<Self.barCount {
             let bar = CALayer()
@@ -380,7 +402,7 @@ final class FloatingIndicatorController {
         case .idle:
             size = isHovered ? NSSize(width: 220, height: 36) : NSSize(width: 44, height: 28)
         case .preparing: size = NSSize(width: 44, height: 28)
-        case .recording: size = isMeetingRecording ? NSSize(width: 140, height: 36) : NSSize(width: 80, height: 32)
+        case .recording: size = isMeetingRecording ? NSSize(width: 100, height: 32) : NSSize(width: 80, height: 32)
         case .transcribing: size = NSSize(width: 120, height: 32)
         }
 
@@ -432,7 +454,7 @@ final class FloatingIndicatorController {
                 .colorWith(hex: 0xD32F2F, alpha: 0.72),
                 .colorWith(hex: 0xFFFFFF, alpha: 0.24),
                 isMeetingRecording ? "⏹" : "🎤",
-                isMeetingRecording ? "Stop Meeting" : "Listening",
+                isMeetingRecording ? "" : "Listening",
                 .white,
                 .white,
                 1.0

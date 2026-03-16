@@ -459,6 +459,9 @@ final class MuesliController: NSObject {
             activeMeetingSession = meetingSession
             micActivityMonitor.suppressWhileActive()
             statusBarController?.setStatus("Meeting: \(title)")
+            indicator.powerProvider = { [weak meetingSession] in
+                meetingSession?.currentPower() ?? -160
+            }
             indicator.setMeetingRecording(true, config: config)
             statusBarController?.refresh()
         } catch {

@@ -23,6 +23,11 @@ final class MeetingSession {
 
     /// Current mic recorder (rotated every chunk interval)
     private var micRecorder = MicrophoneRecorder()
+
+    /// Current mic power level for waveform visualization.
+    func currentPower() -> Float {
+        micRecorder.currentPower()
+    }
     /// Timer that triggers chunk rotation
     private var chunkTimer: Timer?
     /// Accumulated mic transcript segments from completed chunks
