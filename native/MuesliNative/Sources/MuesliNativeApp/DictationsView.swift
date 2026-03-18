@@ -111,9 +111,26 @@ struct DictationsView: View {
                                     ForEach(group.records) { record in
                                         DictationRowView(
                                             record: record,
-                                            timeOnly: formatTimeOnly(record.timestamp)
-                                        ) {
-                                            controller.copyToClipboard(record.rawText)
+                                            timeOnly: formatTimeOnly(record.timestamp),
+                                            onCopy: {
+                                                controller.copyToClipboard(record.rawText)
+                                            },
+                                            onDelete: {
+                                                controller.deleteDictation(id: record.id)
+                                            }
+                                        )
+                                        .contextMenu {
+                                            Button {
+                                                controller.copyToClipboard(record.rawText)
+                                            } label: {
+                                                Label("Copy", systemImage: "doc.on.doc")
+                                            }
+                                            Divider()
+                                            Button(role: .destructive) {
+                                                controller.deleteDictation(id: record.id)
+                                            } label: {
+                                                Label("Delete", systemImage: "trash")
+                                            }
                                         }
                                     }
                                 }
