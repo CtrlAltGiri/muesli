@@ -5,6 +5,9 @@ struct SettingsView: View {
     let appState: AppState
     let controller: MuesliController
 
+    @State private var chatGPTSignInError: String?
+    @State private var isSigningInChatGPT = false
+
     // Uniform width for all right-side controls
     private let controlWidth: CGFloat = 220
 
@@ -71,35 +74,66 @@ struct SettingsView: View {
                     if appState.selectedMeetingSummaryBackend == .chatGPT {
                         settingsRow("Account") {
                             if appState.isChatGPTAuthenticated {
-                                HStack(spacing: 8) {
-                                    Circle()
-                                        .fill(MuesliTheme.success)
-                                        .frame(width: 6, height: 6)
-                                    Text("Signed in")
-                                        .font(.system(size: 11))
-                                        .foregroundStyle(MuesliTheme.success)
-                                    Spacer()
-                                    Button("Sign Out") {
-                                        controller.signOutChatGPT()
-                                    }
-                                    .font(.system(size: 11))
-                                    .buttonStyle(.plain)
-                                    .foregroundStyle(MuesliTheme.textSecondary)
-                                }
-                                .frame(width: controlWidth)
-                            } else {
                                 Button {
-                                    Task { await controller.signInWithChatGPT() }
+                                    controller.signOutChatGPT()
                                 } label: {
-                                    Text("Sign in with ChatGPT")
-                                        .font(.system(size: 12, weight: .medium))
-                                        .foregroundStyle(.white)
-                                        .padding(.horizontal, 12)
-                                        .padding(.vertical, 5)
-                                        .background(MuesliTheme.accent)
-                                        .clipShape(RoundedRectangle(cornerRadius: MuesliTheme.cornerSmall))
+                                    HStack(spacing: 5) {
+                                        OpenAILogoShape()
+                                            .fill(.white)
+                                            .frame(width: 10, height: 10)
+                                        Text("Signed in · Sign Out")
+                                            .font(.system(size: 11, weight: .medium))
+                                            .foregroundStyle(.white)
+                                            .lineLimit(1)
+                                    }
+                                    .padding(.horizontal, 10)
+                                    .padding(.vertical, 4)
+                                    .background(MuesliTheme.success)
+                                    .clipShape(RoundedRectangle(cornerRadius: MuesliTheme.cornerSmall))
                                 }
                                 .buttonStyle(.plain)
+                            } else if isSigningInChatGPT {
+                                HStack(spacing: 6) {
+                                    ProgressView()
+                                        .controlSize(.small)
+                                    Text("Signing in...")
+                                        .font(.system(size: 11))
+                                        .foregroundStyle(MuesliTheme.textSecondary)
+                                }
+                            } else {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Button {
+                                        isSigningInChatGPT = true
+                                        chatGPTSignInError = nil
+                                        Task {
+                                            let error = await controller.signInWithChatGPT()
+                                            isSigningInChatGPT = false
+                                            chatGPTSignInError = error
+                                        }
+                                    } label: {
+                                        HStack(spacing: 5) {
+                                            OpenAILogoShape()
+                                                .fill(.white)
+                                                .frame(width: 10, height: 10)
+                                            Text("Sign in with ChatGPT")
+                                                .font(.system(size: 11, weight: .medium))
+                                                .foregroundStyle(.white)
+                                                .lineLimit(1)
+                                        }
+                                        .padding(.horizontal, 10)
+                                        .padding(.vertical, 4)
+                                        .background(MuesliTheme.accent)
+                                        .clipShape(RoundedRectangle(cornerRadius: MuesliTheme.cornerSmall))
+                                    }
+                                    .buttonStyle(.plain)
+
+                                    if let chatGPTSignInError {
+                                        Text(chatGPTSignInError)
+                                            .font(.system(size: 10))
+                                            .foregroundStyle(.red)
+                                            .lineLimit(2)
+                                    }
+                                }
                             }
                         }
                         Divider().background(MuesliTheme.surfaceBorder)

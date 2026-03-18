@@ -8,6 +8,7 @@ enum ChatGPTAuthError: Error, LocalizedError {
     case notAuthenticated
     case callbackTimeout
     case callbackMissingCode
+    case callbackStateMismatch
     case tokenExchangeFailed(String)
     case refreshFailed(String)
     case portInUse
@@ -17,6 +18,7 @@ enum ChatGPTAuthError: Error, LocalizedError {
         case .notAuthenticated: return "Not signed in to ChatGPT"
         case .callbackTimeout: return "Sign-in timed out — no response from browser"
         case .callbackMissingCode: return "OAuth callback missing authorization code"
+        case .callbackStateMismatch: return "OAuth state mismatch — possible CSRF attack"
         case .tokenExchangeFailed(let msg): return "Token exchange failed: \(msg)"
         case .refreshFailed(let msg): return "Token refresh failed: \(msg)"
         case .portInUse: return "Callback port 1455 is already in use"
@@ -33,15 +35,21 @@ final class ChatGPTAuthManager {
     private static let tokenURL = "https://auth.openai.com/oauth/token"
     private static let redirectURI = "http://localhost:1455/auth/callback"
     private static let scopes = "openid profile email offline_access"
-    private static let keychainService = "com.muesli.app.chatgpt-auth"
     private static let callbackTimeoutSeconds: TimeInterval = 300 // 5 minutes
 
-    private init() {}
+    private var tokenFileURL: URL {
+        AppIdentity.supportDirectoryURL.appendingPathComponent("chatgpt-auth.json")
+    }
+
+    private init() {
+        // Migrate from legacy keychain storage to file
+        migrateFromKeychain()
+    }
 
     // MARK: - Public API
 
     var isAuthenticated: Bool {
-        keychainRead(account: "access_token") != nil
+        tokenRead(key: "access_token") != nil
     }
 
     func signIn() async throws {
@@ -53,21 +61,22 @@ final class ChatGPTAuthManager {
     }
 
     func signOut() {
-        keychainDelete(account: "access_token")
-        keychainDelete(account: "refresh_token")
-        keychainDelete(account: "expires_at")
-        keychainDelete(account: "account_id")
+        deleteTokens()
+        // Also clean up legacy keychain entries
+        for account in ["access_token", "refresh_token", "expires_at", "account_id"] {
+            keychainDeleteLegacy(account: account)
+        }
         fputs("[chatgpt-auth] signed out\n", stderr)
     }
 
     func validAccessToken() async throws -> (token: String, accountId: String) {
-        guard let accessToken = keychainRead(account: "access_token") else {
+        guard let accessToken = tokenRead(key: "access_token") else {
             throw ChatGPTAuthError.notAuthenticated
         }
-        let accountId = keychainRead(account: "account_id") ?? ""
+        let accountId = tokenRead(key: "account_id") ?? ""
 
         // Check expiry with 30-second margin
-        if let expiresStr = keychainRead(account: "expires_at"),
+        if let expiresStr = tokenRead(key: "expires_at"),
            let expiresMs = Double(expiresStr) {
             let expiresAt = Date(timeIntervalSince1970: expiresMs / 1000.0)
             if expiresAt > Date().addingTimeInterval(30) {
@@ -75,7 +84,7 @@ final class ChatGPTAuthManager {
             }
             // Token expired or about to expire — refresh
             fputs("[chatgpt-auth] token expired, refreshing...\n", stderr)
-            guard let refreshToken = keychainRead(account: "refresh_token") else {
+            guard let refreshToken = tokenRead(key: "refresh_token") else {
                 throw ChatGPTAuthError.notAuthenticated
             }
             let tokens = try await refreshAccessToken(refreshToken: refreshToken)
@@ -129,7 +138,10 @@ final class ChatGPTAuthManager {
             let params = NWParameters.tcp
             params.requiredLocalEndpoint = NWEndpoint.hostPort(host: .ipv4(.loopback), port: port)
 
-            let listener = try! NWListener(using: params)
+            guard let listener = try? NWListener(using: params) else {
+                continuation.resume(throwing: ChatGPTAuthError.portInUse)
+                return
+            }
             var resumed = false
 
             let timeoutWork = DispatchWorkItem { [weak listener] in
@@ -152,6 +164,9 @@ final class ChatGPTAuthManager {
                 }
             }
 
+            // Generate state before setting up handler so closure can capture it
+            let expectedState = self.generateState()
+
             listener.newConnectionHandler = { connection in
                 connection.start(queue: .main)
                 connection.receive(minimumIncompleteLength: 1, maximumLength: 8192) { data, _, _, _ in
@@ -167,10 +182,29 @@ final class ChatGPTAuthManager {
                         return
                     }
 
-                    // Parse code from: GET /callback?code=XXX HTTP/1.1
+                    // Parse code + state from: GET /callback?code=XXX&state=YYY HTTP/1.1
                     let code = self.extractCode(from: request)
+                    let callbackState = self.extractParam(named: "state", from: request)
 
-                    // Send response HTML
+                    // Validate state before sending success page to prevent CSRF
+                    guard callbackState == expectedState else {
+                        fputs("[chatgpt-auth] OAuth state mismatch — possible CSRF\n", stderr)
+                        let errorHtml = """
+                        HTTP/1.1 400 Bad Request\r
+                        Content-Type: text/html\r
+                        Connection: close\r
+                        \r
+                        <!DOCTYPE html><html><body style="font-family:-apple-system,system-ui;display:flex;justify-content:center;align-items:center;height:100vh;margin:0;background:#1a1a1a;color:#fff"><div style="text-align:center"><h2>Sign-in failed</h2><p>Security validation failed. Please try again.</p></div></body></html>
+                        """
+                        connection.send(
+                            content: errorHtml.data(using: .utf8),
+                            completion: .contentProcessed { _ in connection.cancel() }
+                        )
+                        continuation.resume(throwing: ChatGPTAuthError.callbackStateMismatch)
+                        return
+                    }
+
+                    // Send success response HTML
                     let html = """
                     HTTP/1.1 200 OK\r
                     Content-Type: text/html\r
@@ -196,8 +230,7 @@ final class ChatGPTAuthManager {
             listener.start(queue: .main)
 
             // Open browser
-            let state = self.generateState()
-            if let url = self.buildAuthorizationURL(codeChallenge: codeChallenge, state: state) {
+            if let url = self.buildAuthorizationURL(codeChallenge: codeChallenge, state: expectedState) {
                 DispatchQueue.main.async {
                     NSWorkspace.shared.open(url)
                 }
@@ -214,6 +247,15 @@ final class ChatGPTAuthManager {
         let pathString = String(pathPart)
         guard let components = URLComponents(string: pathString) else { return nil }
         return components.queryItems?.first(where: { $0.name == "code" })?.value
+    }
+
+    func extractParam(named name: String, from httpRequest: String) -> String? {
+        guard let pathLine = httpRequest.split(separator: "\r\n").first ?? httpRequest.split(separator: "\n").first,
+              let pathPart = pathLine.split(separator: " ").dropFirst().first else {
+            return nil
+        }
+        guard let components = URLComponents(string: String(pathPart)) else { return nil }
+        return components.queryItems?.first(where: { $0.name == name })?.value
     }
 
     // MARK: - Token Exchange
@@ -335,31 +377,72 @@ final class ChatGPTAuthManager {
         return ""
     }
 
-    // MARK: - Keychain
+    // MARK: - File-based Token Storage
 
     private func saveTokens(_ tokens: TokenResponse) {
-        keychainWrite(account: "access_token", value: tokens.accessToken)
-        keychainWrite(account: "refresh_token", value: tokens.refreshToken)
-        keychainWrite(account: "expires_at", value: String(format: "%.0f", tokens.expiresAtMs))
-        keychainWrite(account: "account_id", value: tokens.accountId)
-    }
-
-    private func keychainWrite(account: String, value: String) {
-        guard let data = value.data(using: .utf8) else { return }
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: Self.keychainService,
-            kSecAttrAccount as String: account,
-            kSecUseDataProtectionKeychain as String: true,
+        let dict: [String: String] = [
+            "access_token": tokens.accessToken,
+            "refresh_token": tokens.refreshToken,
+            "expires_at": String(format: "%.0f", tokens.expiresAtMs),
+            "account_id": tokens.accountId,
         ]
-        SecItemDelete(query as CFDictionary)
-        var addQuery = query
-        addQuery[kSecValueData as String] = data
-        addQuery[kSecAttrAccessible as String] = kSecAttrAccessibleWhenUnlockedThisDeviceOnly
-        SecItemAdd(addQuery as CFDictionary, nil)
+        do {
+            let dir = tokenFileURL.deletingLastPathComponent()
+            try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+            let data = try JSONSerialization.data(withJSONObject: dict, options: .prettyPrinted)
+            try data.write(to: tokenFileURL, options: .atomic)
+            try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: tokenFileURL.path)
+            var resourceValues = URLResourceValues()
+            resourceValues.isExcludedFromBackup = true
+            var fileURL = tokenFileURL
+            try fileURL.setResourceValues(resourceValues)
+        } catch {
+            fputs("[chatgpt-auth] failed to save tokens: \(error)\n", stderr)
+        }
     }
 
-    private func keychainRead(account: String) -> String? {
+    private func tokenRead(key: String) -> String? {
+        guard let data = try? Data(contentsOf: tokenFileURL),
+              let dict = try? JSONSerialization.jsonObject(with: data) as? [String: String] else {
+            return nil
+        }
+        return dict[key]
+    }
+
+    private func deleteTokens() {
+        try? FileManager.default.removeItem(at: tokenFileURL)
+    }
+
+    // MARK: - Keychain Migration
+
+    private static let keychainService = "com.muesli.app.chatgpt-auth"
+
+    private func migrateFromKeychain() {
+        // If file already exists, no migration needed
+        guard !FileManager.default.fileExists(atPath: tokenFileURL.path) else { return }
+
+        // Try reading from legacy keychain
+        guard let accessToken = keychainReadLegacy(account: "access_token") else { return }
+        let refreshToken = keychainReadLegacy(account: "refresh_token") ?? ""
+        let expiresAt = keychainReadLegacy(account: "expires_at") ?? "0"
+        let accountId = keychainReadLegacy(account: "account_id") ?? ""
+
+        let tokens = TokenResponse(
+            accessToken: accessToken,
+            refreshToken: refreshToken,
+            expiresAtMs: Double(expiresAt) ?? 0,
+            accountId: accountId
+        )
+        saveTokens(tokens)
+
+        // Clean up keychain entries
+        for account in ["access_token", "refresh_token", "expires_at", "account_id"] {
+            keychainDeleteLegacy(account: account)
+        }
+        fputs("[chatgpt-auth] migrated tokens from keychain to file\n", stderr)
+    }
+
+    private func keychainReadLegacy(account: String) -> String? {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: Self.keychainService,
@@ -374,7 +457,7 @@ final class ChatGPTAuthManager {
         return String(data: data, encoding: .utf8)
     }
 
-    private func keychainDelete(account: String) {
+    private func keychainDeleteLegacy(account: String) {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: Self.keychainService,

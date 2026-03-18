@@ -87,7 +87,12 @@ final class MuesliController: NSObject {
         indicator.onStopMeeting = { [weak self] in self?.stopMeetingRecording() }
         indicator.onDiscardMeeting = { [weak self] in self?.discardMeetingRecording() }
         indicator.onStopToggleDictation = { [weak self] in
-            self?.hotkeyMonitor.stopToggleMode()
+            guard let self else { return }
+            if self.hotkeyMonitor.isToggleRecording {
+                self.hotkeyMonitor.stopToggleMode()
+            } else {
+                self.handleStop()
+            }
         }
         indicator.onCancelToggleDictation = { [weak self] in
             self?.handleCancel()
@@ -225,7 +230,7 @@ final class MuesliController: NSObject {
         if config.showFloatingIndicator {
             indicator.ensureVisible(config: config)
         } else {
-            indicator.close()
+            indicator.closeIfIdle()
         }
     }
 
@@ -273,7 +278,7 @@ final class MuesliController: NSObject {
         if config.showFloatingIndicator {
             indicator.ensureVisible(config: config)
         } else {
-            indicator.close()
+            indicator.closeIfIdle()
         }
     }
 
@@ -298,13 +303,16 @@ final class MuesliController: NSObject {
         }
     }
 
-    func signInWithChatGPT() async {
+    /// Returns nil on success, or an error message on failure.
+    func signInWithChatGPT() async -> String? {
         do {
             try await chatGPTAuth.signIn()
             selectMeetingSummaryBackend(.chatGPT)
             syncAppState()
+            return nil
         } catch {
             fputs("[muesli-native] ChatGPT sign-in failed: \(error)\n", stderr)
+            return error.localizedDescription
         }
     }
 
@@ -361,7 +369,7 @@ final class MuesliController: NSObject {
                 } else if summaryBackend == .openRouter {
                     config.openRouterAPIKey = apiKey
                 }
-                // ChatGPT backend uses OAuth tokens in Keychain, not an API key
+                // ChatGPT backend uses OAuth tokens stored in app support dir, not an API key
             }
         }
         selectBackend(backend)
