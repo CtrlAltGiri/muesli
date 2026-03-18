@@ -100,7 +100,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
 
         let backendItem = NSMenuItem(title: "Transcription Backend", action: nil, keyEquivalent: "")
         let backendMenu = NSMenu()
-        for option in BackendOption.all {
+        for option in BackendOption.downloaded {
             let prefix = controller.selectedBackend == option ? "✓ " : ""
             let item = NSMenuItem(title: "\(prefix)\(option.label)", action: #selector(MuesliController.selectBackendFromMenu(_:)), keyEquivalent: "")
             item.target = controller
