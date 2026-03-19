@@ -5,9 +5,9 @@ enum MeetingSummaryClient {
     private static let openAIURL = URL(string: "https://api.openai.com/v1/responses")!
     private static let openRouterURL = URL(string: "https://openrouter.ai/api/v1/chat/completions")!
     private static let whamURL = URL(string: "https://chatgpt.com/backend-api/wham/responses")!
-    private static let defaultOpenAIModel = "gpt-5-mini"
+    private static let defaultOpenAIModel = "gpt-5.4-mini"
     private static let defaultOpenRouterModel = "stepfun/step-3.5-flash:free"
-    private static let defaultChatGPTModel = "gpt-5.2"
+    private static let defaultChatGPTModel = "gpt-5.4-mini"
 
     private static let titleInstructions = """
     Generate a short, descriptive meeting title (3-7 words) from this transcript. \

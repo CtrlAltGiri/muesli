@@ -129,20 +129,19 @@ struct SummaryModelPreset {
     let label: String
 
     static let openAIModels: [SummaryModelPreset] = [
-        SummaryModelPreset(id: "gpt-5-mini", label: "GPT-5 Mini (default)"),
+        SummaryModelPreset(id: "gpt-5.4-mini", label: "GPT-5.4 Mini (default)"),
+        SummaryModelPreset(id: "gpt-5.4-nano", label: "GPT-5.4 Nano"),
         SummaryModelPreset(id: "gpt-5.4", label: "GPT-5.4"),
         SummaryModelPreset(id: "gpt-5.4-pro", label: "GPT-5.4 Pro"),
+        SummaryModelPreset(id: "gpt-5-mini", label: "GPT-5 Mini"),
         SummaryModelPreset(id: "gpt-5.2", label: "GPT-5.2"),
-        SummaryModelPreset(id: "gpt-5.2-chat", label: "GPT-5.2 Chat"),
-        SummaryModelPreset(id: "gpt-4.1-mini", label: "GPT-4.1 Mini"),
-        SummaryModelPreset(id: "gpt-4.1-nano", label: "GPT-4.1 Nano"),
     ]
 
     static let chatGPTModels: [SummaryModelPreset] = [
-        SummaryModelPreset(id: "gpt-5.2", label: "GPT-5.2 (default)"),
-        SummaryModelPreset(id: "gpt-5.2-chat", label: "GPT-5.2 Chat"),
-        SummaryModelPreset(id: "gpt-4.1-mini", label: "GPT-4.1 Mini"),
-        SummaryModelPreset(id: "gpt-4.1-nano", label: "GPT-4.1 Nano"),
+        SummaryModelPreset(id: "gpt-5.4-mini", label: "GPT-5.4 Mini (default)"),
+        SummaryModelPreset(id: "gpt-5.4-nano", label: "GPT-5.4 Nano"),
+        SummaryModelPreset(id: "gpt-5.4", label: "GPT-5.4"),
+        SummaryModelPreset(id: "gpt-5.2", label: "GPT-5.2"),
         SummaryModelPreset(id: "gpt-4o", label: "GPT-4o"),
     ]
 
