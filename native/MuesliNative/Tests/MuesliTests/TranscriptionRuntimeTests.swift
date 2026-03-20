@@ -55,56 +55,37 @@ struct TranscriptionCoordinatorTests {
     }
 }
 
-@Suite("TranscriptionCoordinator.removeArtifacts")
-struct RemoveArtifactsTests {
+@Suite("TranscriptionEngineArtifactsFilter")
+struct TranscriptionEngineArtifactsFilterTests {
 
-    @Test("clears result when entire text is a known artifact")
+    @Test("returns empty string for known artifact")
     func blankAudioArtifact() {
-        let input = SpeechTranscriptionResult(
-            text: "[blank_audio]",
-            segments: [SpeechSegment(start: 0, end: 1, text: "[blank_audio]")]
-        )
-        let output = TranscriptionCoordinator.removeArtifacts(input)
-        #expect(output.text.isEmpty)
-        #expect(output.segments.isEmpty)
+        #expect(TranscriptionEngineArtifactsFilter.apply("[blank_audio]") == "")
     }
 
-    @Test("artifact matching is case-insensitive")
+    @Test("matching is case-insensitive")
     func caseInsensitive() {
-        let input = SpeechTranscriptionResult(text: "[BLANK_AUDIO]", segments: [])
-        let output = TranscriptionCoordinator.removeArtifacts(input)
-        #expect(output.text.isEmpty)
+        #expect(TranscriptionEngineArtifactsFilter.apply("[BLANK_AUDIO]") == "")
     }
 
-    @Test("artifact matching trims surrounding whitespace")
+    @Test("trims surrounding whitespace before matching")
     func trailingWhitespace() {
-        let input = SpeechTranscriptionResult(text: "  [blank_audio]  \n", segments: [])
-        let output = TranscriptionCoordinator.removeArtifacts(input)
-        #expect(output.text.isEmpty)
+        #expect(TranscriptionEngineArtifactsFilter.apply("  [blank_audio]  \n") == "")
     }
 
     @Test("passes through normal transcription unchanged")
     func normalTextUnchanged() {
-        let input = SpeechTranscriptionResult(
-            text: "Hello world",
-            segments: [SpeechSegment(start: 0, end: 1, text: "Hello world")]
-        )
-        let output = TranscriptionCoordinator.removeArtifacts(input)
-        #expect(output.text == "Hello world")
-        #expect(output.segments.count == 1)
+        #expect(TranscriptionEngineArtifactsFilter.apply("Hello world") == "Hello world")
     }
 
-    @Test("passes through empty text unchanged")
+    @Test("passes through empty string unchanged")
     func emptyTextUnchanged() {
-        let input = SpeechTranscriptionResult(text: "", segments: [])
-        let output = TranscriptionCoordinator.removeArtifacts(input)
-        #expect(output.text.isEmpty)
+        #expect(TranscriptionEngineArtifactsFilter.apply("") == "")
     }
 
     @Test("does not strip artifact when it appears mid-sentence")
     func midSentenceNotStripped() {
-        let input = SpeechTranscriptionResult(text: "Hello [blank_audio] world", segments: [])
-        let output = TranscriptionCoordinator.removeArtifacts(input)
-        #expect(output.text == "Hello [blank_audio] world")
+        let text = "Hello [blank_audio] world"
+        #expect(TranscriptionEngineArtifactsFilter.apply(text) == text)
     }
 }
