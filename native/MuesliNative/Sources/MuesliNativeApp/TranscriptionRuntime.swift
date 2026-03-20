@@ -117,12 +117,14 @@ actor TranscriptionCoordinator {
 
     func transcribeDictation(at url: URL, backend: BackendOption, customWords: [[String: Any]] = []) async throws -> SpeechTranscriptionResult {
         var result = try await route(url: url, backend: backend)
+        result = Self.removeArtifacts(result)
         result = removeFillers(result)
         return applyCustomWords(result, customWords: customWords)
     }
 
     func transcribeMeeting(at url: URL, backend: BackendOption, customWords: [[String: Any]] = []) async throws -> SpeechTranscriptionResult {
         var result = try await route(url: url, backend: backend)
+        result = Self.removeArtifacts(result)
         result = removeFillers(result)
         return applyCustomWords(result, customWords: customWords)
     }
@@ -142,6 +144,7 @@ actor TranscriptionCoordinator {
             }
         }
         var result = try await route(url: url, backend: backend)
+        result = Self.removeArtifacts(result)
         result = removeFillers(result)
         return applyCustomWords(result, customWords: customWords)
     }
@@ -178,6 +181,18 @@ actor TranscriptionCoordinator {
     private func removeFillers(_ result: SpeechTranscriptionResult) -> SpeechTranscriptionResult {
         let filtered = FillerWordFilter.apply(result.text)
         return SpeechTranscriptionResult(text: filtered, segments: result.segments)
+    }
+
+    static let whisperArtifacts: Set<String> = [
+        "[blank_audio]",
+    ]
+
+    static func removeArtifacts(_ result: SpeechTranscriptionResult) -> SpeechTranscriptionResult {
+        let trimmed = result.text.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !trimmed.isEmpty else { return result }
+        return whisperArtifacts.contains(trimmed)
+            ? SpeechTranscriptionResult(text: "", segments: [])
+            : result
     }
 
     private func applyCustomWords(_ result: SpeechTranscriptionResult, customWords: [[String: Any]]) -> SpeechTranscriptionResult {
